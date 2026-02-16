@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GitHub Code Visualizer</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        .header {
+            text-align: center;
+            color: white;
+            margin-bottom: 40px;
+        }
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+        .header p {
+            font-size: 1.1em;
+            opacity: 0.9;
+        }
+        .card {
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+            padding: 30px;
+            margin-bottom: 30px;
+        }
+        .form-group {
+            margin-bottom: 20px;
+        }
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #333;
+        }
+        input, textarea {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 5px;
+            font-family: 'Courier New', monospace;
+            font-size: 1em;
+            transition: border-color 0.3s;
+        }
+        input:focus, textarea:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        .button-group {
+            display: flex;
+            gap: 10px;
+        }
+        button {
+            flex: 1;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 5px;
+            font-size: 1em;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        .btn-trace {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        .btn-trace:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+        .btn-trace:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+        .btn-clear {
+            background: #f0f0f0;
+            color: #333;
+            border: 2px solid #e0e0e0;
+        }
+        .btn-clear:hover {
+            background: #e0e0e0;
+        }
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 20px;
+        }
+        .spinner {
+            border: 4px solid #f0f0f0;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 10px;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .error {
+            display: none;
+            background: #fee;
+            border: 2px solid #f88;
+            color: #c00;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+        }
+        .error.show {
+            display: block;
+        }
+        .results {
+            display: none;
+        }
+        .results.show {
+            display: block;
+        }
+        .step {
+            background: #f9f9f9;
+            border-left: 4px solid #667eea;
+            padding: 15px;
+            margin-bottom: 10px;
+            border-radius: 3px;
+        }
+        .step-number {
+            font-weight: bold;
+            color: #667eea;
+            margin-bottom: 8px;
+        }
+        .step-info {
+            font-size: 0.9em;
+            color: #666;
+            margin-bottom: 8px;
+        }
+        .step-info span {
+            display: inline-block;
+            background: #e8eef7;
+            padding: 4px 8px;
+            border-radius: 3px;
+            margin-right: 8px;
+        }
+        .locals {
+            background: white;
+            padding: 10px;
+            border-radius: 3px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.85em;
+            overflow-x: auto;
+        }
+        .locals-entry {
+            margin: 5px 0;
+            padding: 5px;
+        }
+        .locals-key {
+            color: #667eea;
+            font-weight: bold;
+        }
+        .empty-results {
+            text-align: center;
+            color: #999;
+            padding: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🔍 GitHub Code Visualizer</h1>
+            <p>Trace Python code execution step by step</p>
+        </div>
+
+        <div class="card">
+            <div class="error" id="error"></div>
+            
+            <div class="form-group">
+                <label for="github-url">GitHub Raw URL:</label>
+                <input type="text" id="github-url" placeholder="https://raw.githubusercontent.com/user/repo/main/file.py">
+            </div>
+
+            <div class="form-group">
+                <label for="func-name">Function Name:</label>
+                <input type="text" id="func-name" value="main" placeholder="main">
+            </div>
+
+            <div class="button-group">
+                <button class="btn-trace" id="trace-btn" onclick="traceCode()">Trace Code</button>
+                <button class="btn-clear" onclick="clearResults()">Clear</button>
+            </div>
+        </div>
+
+        <div class="loading" id="loading">
+            <div class="spinner"></div>
+            <p>Tracing execution...</p>
+        </div>
+
+        <div class="results" id="results">
+            <div class="card">
+                <h2>Execution Trace</h2>
+                <div id="steps-container"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        async function traceCode() {
+            const githubUrl = document.getElementById('github-url').value.trim();
+            const funcName = document.getElementById('func-name').value.trim() || 'main';
+            const errorDiv = document.getElementById('error');
+            const loadingDiv = document.getElementById('loading');
+            const resultsDiv = document.getElementById('results');
+
+            // Validation
+            if (!githubUrl) {
+                showError('Please enter a GitHub URL');
+                return;
+            }
+
+            if (!githubUrl.includes('raw.githubusercontent.com')) {
+                showError('Please use a raw GitHub URL (from raw.githubusercontent.com)');
+                return;
+            }
+
+            // Show loading
+            errorDiv.classList.remove('show');
+            loadingDiv.style.display = 'block';
+            resultsDiv.classList.remove('show');
+            document.getElementById('trace-btn').disabled = true;
+
+            try {
+                const response = await fetch('/trace', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        github_url: githubUrl,
+                        func_name: funcName
+                    })
+                });
+
+                const data = await response.json();
+
+                if (!response.ok) {
+                    showError(data.detail || 'Error tracing code');
+                    return;
+                }
+
+                if (data.success && data.steps.length > 0) {
+                    displaySteps(data.steps);
+                    resultsDiv.classList.add('show');
+                } else {
+                    showError('No steps returned from trace');
+                }
+            } catch (error) {
+                showError('Error: ' + error.message);
+            } finally {
+                loadingDiv.style.display = 'none';
+                document.getElementById('trace-btn').disabled = false;
+            }
+        }
+
+        function displaySteps(steps) {
+            const container = document.getElementById('steps-container');
+            container.innerHTML = '';
+
+            if (steps.length === 0) {
+                container.innerHTML = '<div class="empty-results">No steps recorded</div>';
+                return;
+            }
+
+            steps.forEach((step, index) => {
+                const stepDiv = document.createElement('div');
+                stepDiv.className = 'step';
+                
+                let localsHtml = '';
+                if (step.locals && Object.keys(step.locals).length > 0) {
+                    localsHtml = '<div class="locals">';
+                    for (const [key, value] of Object.entries(step.locals)) {
+                        localsHtml += `<div class="locals-entry"><span class="locals-key">${key}:</span> ${value}</div>`;
+                    }
+                    localsHtml += '</div>';
+                }
+
+                stepDiv.innerHTML = `
+                    <div class="step-number">Step ${index + 1}</div>
+                    <div class="step-info">
+                        <span>Line: <strong>${step.line_no}</strong></span>
+                        <span>Function: <strong>${step.func_name}</strong></span>
+                        <span>Event: <strong>${step.event}</strong></span>
+                    </div>
+                    ${localsHtml}
+                `;
+                container.appendChild(stepDiv);
+            });
+        }
+
+        function showError(message) {
+            const errorDiv = document.getElementById('error');
+            errorDiv.textContent = message;
+            errorDiv.classList.add('show');
+        }
+
+        function clearResults() {
+            document.getElementById('github-url').value = '';
+            document.getElementById('func-name').value = 'main';
+            document.getElementById('error').classList.remove('show');
+            document.getElementById('results').classList.remove('show');
+        }
+    </script>
+</body>
+</html>
