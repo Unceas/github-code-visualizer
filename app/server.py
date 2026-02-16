@@ -1,5 +1,6 @@
 # app/server.py
 from fastapi import FastAPI, HTTPException
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from typing import List, Dict, Any
 
@@ -67,6 +68,12 @@ def trace_endpoint(request: TraceRequest):
 @app.get("/health")
 def health_check():
     return {"status": "ok"}
+
+# Mount static files (HTML/CSS/JS)
+import os
+static_path = os.path.join(os.path.dirname(__file__), '..', 'static')
+if os.path.exists(static_path):
+    app.mount('/', StaticFiles(directory=static_path), name='static')
 
 if __name__ == "__main__":
     import uvicorn
